@@ -16,7 +16,7 @@ seed_num = 123
 with open('config/meta_data.json', 'r') as f:
     meta_data = json.load(f)
     
-with open('draft_retrieval/cf_retrieval.pkl', 'rb') as f:
+with open('draft_retrieval/combined_retrieval.pkl', 'rb') as f:
     cf_retrieval = pickle.load(f)
     
 def get_retrieval(user_id: str) -> list[str]:
