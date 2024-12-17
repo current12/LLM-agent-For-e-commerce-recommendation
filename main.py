@@ -123,7 +123,7 @@ def main(user_query: str):
             rec_message = (
                 f"Based on the analysis results: {analysis_result}\n"
                 f"And the cadidate set: {retrieval_list}\n"
-                "Recommend the top 20 products that best align with the user's preferences."
+                "Recommend the top 50 products that best align with the user's preferences."
             )
         else:
             if not movies_to_remove:
@@ -148,106 +148,111 @@ def main(user_query: str):
             "cache": Cache.disk(cache_seed=seed_num),
         }])
         rec_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
+            
         
         print("Recommendation Output:", rec_output)
         try:
             rec_data = json.loads(rec_output)
-            recommended_items = rec_data['recommended_items']
+            recommended_items = [list(rec.keys())[0] for rec in rec_data['recommended_items']]
             item_new = rec_data['item_new']  
+            return recommended_items
         except (json.JSONDecodeError, KeyError) as e:
             print("Error parsing recommendation output:", e)
-            break
+            return []
+            # break
+    
 
-        if iteration == 1:
-            movies_to_comment = recommended_items
-        else:
-            movies_to_comment = item_new
+    #     if iteration == 1:
+    #         movies_to_comment = recommended_items
+    #     else:
+    #         movies_to_comment = item_new
 
-        if not movies_to_comment:
-            print("No movies to comment on.")
-            break
+    #     if not movies_to_comment:
+    #         print("No movies to comment on.")
+    #         break
 
 
-        comment_message = (
-            f"Based on the user's history reviews:\n{user_history_info}\n\n"
-            f"Suppose you are such a user and here are some products you've purchased:\n{json.dumps(movies_to_comment)}\n\n"
-            f"Generate honest and critical comments for each product."
-        )
-        result = entrypoint_agent.initiate_chats([{
-            "recipient": comment_simulator_agent,
-            "message": comment_message,
-            "max_turns": 1,
-            "summary_method": "last_msg",
-        }])
-        comments_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
+    #     comment_message = (
+    #         f"Based on the user's history reviews:\n{user_history_info}\n\n"
+    #         f"Suppose you are such a user and here are some products you've purchased:\n{json.dumps(movies_to_comment)}\n\n"
+    #         f"Generate honest and critical comments for each product."
+    #     )
+    #     result = entrypoint_agent.initiate_chats([{
+    #         "recipient": comment_simulator_agent,
+    #         "message": comment_message,
+    #         "max_turns": 1,
+    #         "summary_method": "last_msg",
+    #     }])
+    #     comments_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
         
-        try:
-            # 检查是否为 JSON 数组
-            comments_output_json = re.search(r'\[.*\]', comments_output, re.DOTALL)
-            if comments_output_json:
-                comments_output_clean = comments_output_json.group(0)
-                comments_data = json.loads(comments_output_clean)
-            else:
-                comments_data = json.loads(comments_output)
-                if not isinstance(comments_data, list):
-                    comments_data = [comments_data]  
-        except Exception as e:
-            print("Error parsing comments:", e)
-            print(f"Raw comments output: {comments_output}")  
-            break
+    #     try:
+    #         # 检查是否为 JSON 数组
+    #         comments_output_json = re.search(r'\[.*\]', comments_output, re.DOTALL)
+    #         if comments_output_json:
+    #             comments_output_clean = comments_output_json.group(0)
+    #             comments_data = json.loads(comments_output_clean)
+    #         else:
+    #             comments_data = json.loads(comments_output)
+    #             if not isinstance(comments_data, list):
+    #                 comments_data = [comments_data]  
+    #     except Exception as e:
+    #         print("Error parsing comments:", e)
+    #         print(f"Raw comments output: {comments_output}")  
+    #         break
 
-        eval_message = (
-            f"Here are the comments for the recommended movies:\n{comments_output_clean}\n\n"
-            f"Evaluate these movies from the user's perspective based on the comments provided."
-        )
-        result = entrypoint_agent.initiate_chats([{
-            "recipient": eval_agent,
-            "message": eval_message,
-            "max_turns": 1,
-            "summary_method": "last_msg",
-        }])
-        eval_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
+    #     eval_message = (
+    #         f"Here are the comments for the recommended movies:\n{comments_output_clean}\n\n"
+    #         f"Evaluate these movies from the user's perspective based on the comments provided."
+    #     )
+    #     result = entrypoint_agent.initiate_chats([{
+    #         "recipient": eval_agent,
+    #         "message": eval_message,
+    #         "max_turns": 1,
+    #         "summary_method": "last_msg",
+    #     }])
+    #     eval_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
 
-        try:
-            eval_output_json = json.loads(eval_output)
-            evaluations = eval_output_json
-        except (json.JSONDecodeError, KeyError) as e:
-            print("Error parsing evaluation output:", e)
-            break
+    #     try:
+    #         eval_output_json = json.loads(eval_output)
+    #         evaluations = eval_output_json
+    #     except (json.JSONDecodeError, KeyError) as e:
+    #         print("Error parsing evaluation output:", e)
+    #         break
 
-        judge_message = f"Here are the evaluations:\n{evaluations}\n\n Remove items that have negative comments."
-        result = entrypoint_agent.initiate_chats([{
-            "recipient": judge_agent,
-            "message": evaluations,
-            "max_turns": 1,
-            "summary_method": "last_msg",
-        }])
-        judge_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
+    #     judge_message = f"Here are the evaluations:\n{evaluations}\n\n Remove items that have negative comments."
+    #     result = entrypoint_agent.initiate_chats([{
+    #         "recipient": judge_agent,
+    #         "message": evaluations,
+    #         "max_turns": 1,
+    #         "summary_method": "last_msg",
+    #     }])
+    #     judge_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
 
-        try:
-            judge_output_json = json.loads(judge_output)
-            movies_to_remove = judge_output_json.get('movies_to_remove', [])
+    #     try:
+    #         judge_output_json = json.loads(judge_output)
+    #         movies_to_remove = judge_output_json.get('movies_to_remove', [])
 
-            if judge_output_json.get('process_complete', False):
-                print("No item to remove. Process complete.")
-                break
+    #         if judge_output_json.get('process_complete', False):
+    #             print("No item to remove. Process complete.")
+    #             break
 
-        except Exception as e:
-            print("Error parsing judge agent output:", e)
-            break
+    #     except Exception as e:
+    #         print("Error parsing judge agent output:", e)
+    #         break
         
 
-    if movies_to_save:
-        # 如果没有推荐历史，但已保存符合条件的电影，直接返回这些电影
-        print("Process completed in the first iteration.")
-        print("Final Movie List:", list(movies_to_save.keys()))
-        return list(movies_to_save.keys())
-    else:
-        # 如果没有推荐记录也没有保存的电影，说明没有生成任何推荐
-        print("No recommendations were generated.")
-        return []
+    # if movies_to_save:
+    #     # 如果没有推荐历史，但已保存符合条件的电影，直接返回这些电影
+    #     print("Process completed in the first iteration.")
+    #     print("Final Movie List:", list(movies_to_save.keys()))
+    #     return list(movies_to_save.keys())
+    # else:
+    #     # 如果没有推荐记录也没有保存的电影，说明没有生成任何推荐
+    #     print("No recommendations were generated.")
+    #     return []
 
 
 # Do not modify this code below.
 if __name__ == "__main__":
-    main("Please recommend for user 'AHV6QCNBJNSGLATP56JAWJ3C4G2A', who had purchased [B07NPWK167 B07SW7D6ZR B07WNBZQGT B082NKQ4ZT B083TLNBJJ B087D7MVHB B088FBNQXW B085NYYLQ8 B08BZ1RHPS B0B2L218H2 B08HXQ3T9K B08KWN77LW]")
+    res = main("Please recommend for user 'AHV6QCNBJNSGLATP56JAWJ3C4G2A', who had purchased [B07NPWK167 B07SW7D6ZR B07WNBZQGT B082NKQ4ZT B083TLNBJJ B087D7MVHB B088FBNQXW B085NYYLQ8 B08BZ1RHPS B0B2L218H2 B08HXQ3T9K B08KWN77LW]")
+    print(res)

@@ -15,7 +15,7 @@ prompts = {
         Using the user's preferences, recommend a list of movies that align with the user's tastes across multiple aspects. Follow these steps to create a well-rounded set of recommendations:
 
         1. **For the first iteration**:
-        - Generate a ranked list of 20 products that align with the user's preferences across the following aspects:
+        - Generate a ranked list of 50 products that align with the user's preferences across the following aspects:
         - Present the list in the following JSON format:
             {
             "recommended_items": [
