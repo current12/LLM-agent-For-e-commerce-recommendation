@@ -58,7 +58,8 @@ for i in range(len(dataset['test'])):
 
 
 contents = []
-for i in range(1):
+print(len(test["userid"]))
+for i in range(len(test["userid"])):
     prompt = "User\n" + str(test["userid"][i]) + "\nhas purchased products: \n" + str(test["previous_movie_seq"][i])+", \nCan you recommend some product for him/her?"
     contents.append(prompt)
 

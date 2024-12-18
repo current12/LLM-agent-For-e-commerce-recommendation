@@ -8,6 +8,7 @@ import json
 import pandas as pd
 from autogen import Cache
 import pickle
+import ast
 
 from config.prompts import prompts
 
@@ -24,7 +25,7 @@ with open('config/history_reviews.json', 'r') as f:
     
 def get_retrieval(user_id: str) -> Dict[str, Dict]:
     return {item:
-        meta_data[item] for item in retrieval[user_id]
+        meta_data[item]['title'] for item in retrieval[user_id]
     }
         
 def fetch_reviews(user_id, item_id):
@@ -110,10 +111,10 @@ def main(user_query: str):
     analysis_output = result[-1].chat_history[1]['content']
     analysis_result = analysis_output
 
-    movies_to_save = {}
-    movies_to_remove = []
+    items_to_save = {}
+    items_to_remove = []
     iteration = 0
-    max_iterations = 1
+    max_iterations = 2
 
     while iteration < max_iterations:
         iteration += 1
@@ -123,21 +124,22 @@ def main(user_query: str):
             rec_message = (
                 f"Based on the analysis results: {analysis_result}\n"
                 f"And the cadidate set: {retrieval_list}\n"
-                "Recommend the top 50 products that best align with the user's preferences."
+                "Recommend the top 20 products that best align with the user's preferences from the analysis result, must consider all the product."
             )
         else:
-            if not movies_to_remove:
+            if not items_to_remove:
                 print("All products have good. Process complete.")
+                return recommended_items
                 break
             else:
-                movies_to_remove_str = json.dumps(movies_to_remove)
+                items_to_remove_str = json.dumps(items_to_remove)
                 rec_message = (
                     f"Based on the analysis results: {analysis_result}\n"
-                    f"Here are the products to save: {json.dumps(movies_to_save)}\n"
-                    f"Remove the following products from the recommendation list and replace them with new recommendations:\n"
-                    f"Movies to remove: {movies_to_remove_str}\n"
-                    f"Provide the updated list of 20 products and specify the new product(s) added in the format:\n"
-                    f"{{'recommended_products': [...], 'products_new': [...]}}"
+                    f"Here are the products to save: {json.dumps(items_to_save)}\n"
+                    f"Remove the following products from the recommendation list and replace them with new recommendations that will have positive evaluation scores:\n"
+                    f"Movies to remove: {items_to_remove_str}\n"
+                    f"Provide the updated list of 20 products in recommended_items (must have length 20!!!) and specify the new product(s) in the item_new:\n"
+                    f"{{'recommended_items': [...], 'item_new': [...]}}"
                 )
 
         result = entrypoint_agent.initiate_chats([{
@@ -152,105 +154,117 @@ def main(user_query: str):
         
         print("Recommendation Output:", rec_output)
         try:
+            
             rec_data = json.loads(rec_output)
             recommended_items = [list(rec.keys())[0] for rec in rec_data['recommended_items']]
+            
             item_new = rec_data['item_new']  
-            return recommended_items
+
         except (json.JSONDecodeError, KeyError) as e:
             print("Error parsing recommendation output:", e)
             return []
             # break
     
 
-    #     if iteration == 1:
-    #         movies_to_comment = recommended_items
-    #     else:
-    #         movies_to_comment = item_new
+        if iteration == 1:
+             items_to_comment = recommended_items
+        else:
+             items_to_comment = item_new
 
-    #     if not movies_to_comment:
-    #         print("No movies to comment on.")
-    #         break
+        if not items_to_comment:
+             print("No items to comment on.")
+             break
 
-
-    #     comment_message = (
-    #         f"Based on the user's history reviews:\n{user_history_info}\n\n"
-    #         f"Suppose you are such a user and here are some products you've purchased:\n{json.dumps(movies_to_comment)}\n\n"
-    #         f"Generate honest and critical comments for each product."
-    #     )
-    #     result = entrypoint_agent.initiate_chats([{
-    #         "recipient": comment_simulator_agent,
-    #         "message": comment_message,
-    #         "max_turns": 1,
-    #         "summary_method": "last_msg",
-    #     }])
-    #     comments_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
         
-    #     try:
-    #         # 检查是否为 JSON 数组
-    #         comments_output_json = re.search(r'\[.*\]', comments_output, re.DOTALL)
-    #         if comments_output_json:
-    #             comments_output_clean = comments_output_json.group(0)
-    #             comments_data = json.loads(comments_output_clean)
-    #         else:
-    #             comments_data = json.loads(comments_output)
-    #             if not isinstance(comments_data, list):
-    #                 comments_data = [comments_data]  
-    #     except Exception as e:
-    #         print("Error parsing comments:", e)
-    #         print(f"Raw comments output: {comments_output}")  
-    #         break
+        comment_message = (
+            f"Based on the user's review history:\n{user_history_info}\n\n"
+            f"You are tasked with writing honest, critical, and realistic comments for each of the following products, reflecting the user's preferences, tone, and style:\n\n"
+            f"{json.dumps(items_to_comment)}\n\n"
+            f"**Instructions for Writing Comments:**\n"
+            f"1. Write comments as if you are the user, ensuring the tone aligns with their review history.\n"
+            f"2. Provide balanced feedback by highlighting both strengths and weaknesses of each product.\n"
+            f"3. Avoid overly generic statements; include specific aspects like quality, usability, price, or features where applicable.\n"
+            f"4. Do not use the word 'but' to maintain a smoother and more natural tone.\n"
+            f"5. Ensure each comment is concise, insightful, and relevant to the product's description and the user's preferences.\n\n"
+  
+            f"Generate comments for ALL products listed above, ensuring they reflect the user's voice accurately."
+        )
 
-    #     eval_message = (
-    #         f"Here are the comments for the recommended movies:\n{comments_output_clean}\n\n"
-    #         f"Evaluate these movies from the user's perspective based on the comments provided."
-    #     )
-    #     result = entrypoint_agent.initiate_chats([{
-    #         "recipient": eval_agent,
-    #         "message": eval_message,
-    #         "max_turns": 1,
-    #         "summary_method": "last_msg",
-    #     }])
-    #     eval_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
-
-    #     try:
-    #         eval_output_json = json.loads(eval_output)
-    #         evaluations = eval_output_json
-    #     except (json.JSONDecodeError, KeyError) as e:
-    #         print("Error parsing evaluation output:", e)
-    #         break
-
-    #     judge_message = f"Here are the evaluations:\n{evaluations}\n\n Remove items that have negative comments."
-    #     result = entrypoint_agent.initiate_chats([{
-    #         "recipient": judge_agent,
-    #         "message": evaluations,
-    #         "max_turns": 1,
-    #         "summary_method": "last_msg",
-    #     }])
-    #     judge_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
-
-    #     try:
-    #         judge_output_json = json.loads(judge_output)
-    #         movies_to_remove = judge_output_json.get('movies_to_remove', [])
-
-    #         if judge_output_json.get('process_complete', False):
-    #             print("No item to remove. Process complete.")
-    #             break
-
-    #     except Exception as e:
-    #         print("Error parsing judge agent output:", e)
-    #         break
+        result = entrypoint_agent.initiate_chats([{
+             "recipient": comment_simulator_agent,
+             "message": comment_message,
+             "max_turns": 1,
+             "summary_method": "last_msg",
+         }])
+        comments_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
         
+        try:
+             # 检查是否为 JSON 数组
+             comments_output_json = re.search(r'\[.*\]', comments_output, re.DOTALL)
+             if comments_output_json:
+                 comments_output_clean = comments_output_json.group(0)
+                 comments_data = json.loads(comments_output_clean)
+             else:
+                 comments_data = json.loads(comments_output)
+                 if not isinstance(comments_data, list):
+                     comments_data = [comments_data]  
+        except Exception as e:
+             print("Error parsing comments:", e)
+             print(f"Raw comments output: {comments_output}")  
+             break
 
-    # if movies_to_save:
-    #     # 如果没有推荐历史，但已保存符合条件的电影，直接返回这些电影
-    #     print("Process completed in the first iteration.")
-    #     print("Final Movie List:", list(movies_to_save.keys()))
-    #     return list(movies_to_save.keys())
-    # else:
-    #     # 如果没有推荐记录也没有保存的电影，说明没有生成任何推荐
-    #     print("No recommendations were generated.")
-    #     return []
+        eval_message = (
+             f"Here are the comments for the recommended movies:\n{comments_output_clean}\n\n"
+             f"Evaluate these movies from the user's perspective based on the comments provided."
+         )
+        result = entrypoint_agent.initiate_chats([{
+             "recipient": eval_agent,
+             "message": eval_message,
+             "max_turns": 1,
+             "summary_method": "last_msg",
+         }])
+        eval_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
 
+        try:
+             eval_output_json = json.loads(eval_output)
+             evaluations = eval_output_json
+        except (json.JSONDecodeError, KeyError) as e:
+             print("Error parsing evaluation output:", e)
+             break
+
+        judge_message = f"Here are the evaluations:\n{evaluations}\n\n Remove items that have extreme negative comments and rating(-2)."
+        result = entrypoint_agent.initiate_chats([{
+             "recipient": judge_agent,
+             "message": judge_message,
+             "max_turns": 1,
+             "summary_method": "last_msg",
+         }])
+        judge_output = result[-1].chat_history[1]['content'].strip("```json").strip("```").strip()
+
+        try:
+             judge_output_json = json.loads(judge_output)
+             items_to_remove = judge_output_json.get('items_to_remove', [])
+
+             if judge_output_json.get('process_complete', False):
+                 print("No item to remove. Process complete.")
+                 break
+
+        except Exception as e:
+             print("Error parsing judge agent output:", e)
+             break
+        
+    '''
+    if items_to_save:
+         # 如果没有推荐历史，但已保存符合条件的电影，直接返回这些电影
+         print("Process completed in the first iteration.")
+         print("Final items List:", list(items_to_save.keys()))
+         return list(items_to_save.keys())
+    else:
+         # 如果没有推荐记录也没有保存的电影，说明没有生成任何推荐
+         print("No recommendations were generated.")
+         return []
+    '''
+    return recommended_items
 
 # Do not modify this code below.
 if __name__ == "__main__":
