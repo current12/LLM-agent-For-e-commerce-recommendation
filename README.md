@@ -13,4 +13,15 @@ Pre-processed datasets are included in the repository. You can directly run the 
 ---
 
 ## Quick Start
-python test.py
+Ensure all packages are installed by running:
+To run the project, execute the following scripts based on your desired task:
+
+- **For MovieLens Task**:
+  ```bash
+  python movie_demo/code/test.py
+  ```
+
+- **For Amazon Task**:
+  ```bash
+  python python amazon_test.py
+  ```
