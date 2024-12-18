@@ -13,7 +13,9 @@ Pre-processed datasets are included in the repository. You can directly run the 
 ---
 
 ## Quick Start
-Ensure all packages are installed by running:
+- We use the AutoGen multi-agent framework and GPT-4o Api for our project. Make sure you have OPENAI_API_KEY and export it to your environment.
+- Ensure all packages are installed by running.
+
 To run the project, execute the following scripts based on your desired task:
 
 - **For MovieLens Task**:
