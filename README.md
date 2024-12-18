@@ -23,5 +23,5 @@ To run the project, execute the following scripts based on your desired task:
 
 - **For Amazon Task**:
   ```bash
-  python python amazon_test.py
+  python amazon_test.py
   ```
