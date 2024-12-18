@@ -1,6 +1,6 @@
 # LLM-Agent for E-Commerce Recommendation
 
-This project leverages a large language model (LLM) for personalized recommendations in e-commerce tasks. It supports both the MovieLens and Amazon datasets.
+This project leverages an LLM agent framework with user-comment-simulation and actor-critic architecture for personalized recommendations in e-commerce tasks. It supports both the MovieLens and Amazon datasets.
 
 ---
 
